@@ -6,18 +6,18 @@ import (
 	"strings"
 )
 
-type InjestChannel struct {
+type IngestChannel struct {
 	client  *Client
 	Verbose bool
 }
 
-func NewInjestChannel(address string) (*InjestChannel, error) {
+func NewIngestChannel(address string) (*IngestChannel, error) {
 	client, err := NewClient(address)
 	if err != nil {
 		return nil, err
 	}
 
-	channel := &InjestChannel{
+	channel := &IngestChannel{
 		client: client,
 	}
 
@@ -34,7 +34,7 @@ func NewInjestChannel(address string) (*InjestChannel, error) {
 
 // Send accepts a format string, logs it if the client is Verbose, and sends it
 // to the Sonic server. It waits for a response and returns it.
-func (c *InjestChannel) Send(format string, args ...interface{}) (string, error) {
+func (c *IngestChannel) Send(format string, args ...interface{}) (string, error) {
 	Send := fmt.Sprintf(fmt.Sprintf("%s\n", format), args...)
 	if c.Verbose {
 		log.Print(Send)
@@ -50,7 +50,7 @@ func (c *InjestChannel) Send(format string, args ...interface{}) (string, error)
 	return resp, nil
 }
 
-func (c *InjestChannel) Start(password string) error {
+func (c *IngestChannel) Start(password string) error {
 	resp, err := c.Send("START ingest %s", password)
 	if err != nil {
 		return err
@@ -63,12 +63,12 @@ func (c *InjestChannel) Start(password string) error {
 	return nil
 }
 
-func (c *InjestChannel) Quit() {
+func (c *IngestChannel) Quit() {
 	c.Send("QUIT")
 	c.client.Disconnect()
 }
 
-func (c *InjestChannel) Ping() error {
+func (c *IngestChannel) Ping() error {
 	resp, err := c.Send("PING")
 	if err != nil {
 		return err
@@ -81,7 +81,7 @@ func (c *InjestChannel) Ping() error {
 	return nil
 }
 
-func (c *InjestChannel) Push(collection, bucket, object, text string) error {
+func (c *IngestChannel) Push(collection, bucket, object, text string) error {
 	resp, err := c.Send("PUSH %s %s %s \"%s\"", collection, bucket, object, text)
 	if err != nil {
 		return err

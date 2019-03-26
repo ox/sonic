@@ -6,7 +6,7 @@ This is a WIP client for the [Sonic](https://github.com/valeriansaliou/sonic) se
 
 ```go
 
-channel, err := channel.NewInjestChannel("[::1]:1491")
+channel, err := channel.NewIngestChannel("[::1]:1491")
 if err != nil {
   log.Fatalf("Could not make new channel: %s", err.Error())
 }
