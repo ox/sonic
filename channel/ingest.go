@@ -1,14 +1,16 @@
 package channel
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
 )
 
 type IngestChannel struct {
-	client  *Client
-	Verbose bool
+	client     *Client
+	cancelFunc context.CancelFunc
+	Verbose    bool
 }
 
 func NewIngestChannel(address string) (*IngestChannel, error) {
@@ -17,15 +19,18 @@ func NewIngestChannel(address string) (*IngestChannel, error) {
 		return nil, err
 	}
 
+	ctx, cancelFunc := context.WithCancel(context.Background())
 	channel := &IngestChannel{
-		client: client,
+		client:     client,
+		cancelFunc: cancelFunc,
 	}
 
-	client.Connect()
+	client.Connect(ctx)
+	client.ParseMessages(ctx)
 
 	resp := <-client.Responses
 	if !strings.Contains(resp, "CONNECTED") {
-		client.Disconnect()
+		cancelFunc()
 		return nil, fmt.Errorf("Could not connect to server: %s", resp)
 	}
 
@@ -65,7 +70,7 @@ func (c *IngestChannel) Start(password string) error {
 
 func (c *IngestChannel) Quit() {
 	c.Send("QUIT")
-	c.client.Disconnect()
+	c.cancelFunc()
 }
 
 func (c *IngestChannel) Ping() error {

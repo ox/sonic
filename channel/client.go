@@ -2,6 +2,7 @@ package channel
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -13,13 +14,11 @@ type Client struct {
 	Responses chan string
 	reading   []byte
 	conn      net.Conn
-	listening bool
 }
 
 func NewClient(address string) (*Client, error) {
 	client := &Client{
-		reading:   make([]byte, 0),
-		listening: false,
+		reading: make([]byte, 0),
 	}
 
 	conn, err := net.Dial("tcp", address)
@@ -28,42 +27,38 @@ func NewClient(address string) (*Client, error) {
 	}
 
 	client.conn = conn
+	client.Responses = make(chan string)
 	return client, err
 }
 
-func (c *Client) Connect() {
-	c.Responses = make(chan string)
-	c.listening = true
-
+func (c *Client) Connect(ctx context.Context) {
 	go func() {
-		for c.listening {
-			data := make([]byte, 256)
-			_, err := c.conn.Read(data)
-			if err != nil && err != io.EOF {
-				log.Println("Error reading from connection:", err.Error())
-				c.Disconnect()
+		for {
+			select {
+			case <-ctx.Done():
+				c.conn.Close()
 				return
-			}
+			default:
+				data := make([]byte, 256)
+				_, err := c.conn.Read(data)
+				if err != nil && err != io.EOF {
+					log.Println("Error reading from connection:", err.Error())
+					c.conn.Close()
+					return
+				}
 
-			// EOF means connection has already been closed. Parse the last messages
-			if err != nil && err == io.EOF {
-				c.ParseMessages()
-				return
-			}
+				// EOF means connection has already been closed.
+				if err != nil && err == io.EOF {
+					return
+				}
 
-			c.reading = append(c.reading, data[:]...)
-			c.ParseMessages()
+				c.reading = append(c.reading, data[:]...)
+			}
 		}
 	}()
 }
 
-func (c *Client) Disconnect() {
-	close(c.Responses)
-	c.listening = false
-	c.conn.Close()
-}
-
-func (c *Client) ParseMessages() {
+func (c *Client) ParseMessages(ctx context.Context) {
 	messages := bytes.Split(c.reading, []byte("\n"))
 	for i, message := range messages {
 		if i == len(messages)-1 {
@@ -78,6 +73,6 @@ func (c *Client) ParseMessages() {
 	c.reading = messages[len(messages)-1]
 }
 
-func (c *Client) Send(msg string) {
+func (c Client) Send(msg string) {
 	fmt.Fprintf(c.conn, msg)
 }
